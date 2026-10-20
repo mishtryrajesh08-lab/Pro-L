@@ -1,0 +1,52 @@
+<!doctype html><html data-theme="graphite"><head><meta charset="utf-8"><title>Pro L</title>
+<link rel="stylesheet" href="ui.css"></head><body>
+<div id="app" class="left">
+ <header class="tabbar"><img class="logo" src="logo.png" alt="Pro L"><div id="tabs"></div><button id="newtab" title="New tab (Ctrl+T)"></button></header>
+ <div class="toolbar">
+  <button class="ib" id="back" title="Back (Alt+Left)"></button><button class="ib" id="fwd" title="Forward (Alt+Right)"></button><button class="ib" id="reload" title="Reload (Ctrl+R)"></button>
+  <div class="omni"><span id="lock"></span><input id="url" spellcheck="false" placeholder="Search or enter address"><button class="ib" id="star" title="Bookmark (Ctrl+D)" style="width:28px;height:28px"></button></div>
+  <button class="ib" id="dl" title="Downloads"></button><button class="ib" id="set" title="Settings"></button>
+ </div>
+ <aside id="side"></aside><main id="main"></main>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const P={back:'M15 5l-7 7 7 7',fwd:'M9 5l7 7-7 7',reload:'M20 12a8 8 0 1 1-2.5-5.8M20 4v5h-5',x:'M6 6l12 12M18 6L6 18',
+ star:'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',dl:'M12 4v11m-5-4l5 5 5-5M5 20h14',
+ gear:'M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6',plus:'M12 5v14M5 12h14',lock:'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v9H5z',book:'M6 4h12v17l-6-4-6 4z'};
+const I=(n,f,s=18)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="${f?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${P[n]}"/></svg>`;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S,SITES,T={list:[],active:0};
+$('#newtab').innerHTML=I('plus');$('#back').innerHTML=I('back');$('#fwd').innerHTML=I('fwd');$('#dl').innerHTML=I('dl');
+$('#set').innerHTML=I('gear');$('#lock').innerHTML=I('lock',0,14);
+(async()=>{const d=await pro.inv('state');S=d.S;SITES=d.sites;theme();side();draw();pro.inv('tabsNow');
+ pro.on('tabs',t=>{T=t;draw()});pro.on('settings',s=>{S=s;theme();side()});
+ pro.on('downloads',l=>$('#dl').classList.toggle('busy',l.some(x=>x.state==='progressing')));
+ pro.on('focus-url',()=>{$('#url').focus();$('#url').select()});})();
+function theme(){document.documentElement.dataset.theme=S.theme;document.documentElement.style.setProperty('--accent',S.accent)}
+function side(){$('#app').className=S.side;
+ $('#side').innerHTML=S.sites.filter(i=>SITES[i]).map(i=>`<button class="site" data-u="${SITES[i][1]}" title="${SITES[i][0]}" style="--c:${SITES[i][2]}">${SITES[i][0][0]}</button>`).join('')
+ +`<span class="sp"></span><button class="ib" data-go="pro://bookmarks" title="Bookmarks">${I('book')}</button><button class="ib" data-go="pro://settings" title="Settings">${I('gear')}</button>`}
+function draw(){const a=T.list.find(t=>t.id===T.active)||{};
+ $('#tabs').innerHTML=T.list.map(t=>`<div class="tab${t.id===T.active?' on':''}${t.loading?' ld':''}" data-id="${t.id}" title="${esc(t.title)}">${t.icon?`<img src="${esc(t.icon)}" alt="">`:'<i></i>'}<span>${esc(t.title)}</span><button class="x" data-x="${t.id}" title="Close tab">${I('x',0,12)}</button></div>`).join('');
+ $('#back').disabled=!a.back;$('#fwd').disabled=!a.fwd;
+ $('#reload').innerHTML=I(a.loading?'x':'reload');
+ if(document.activeElement!==$('#url'))$('#url').value=(a.url==='pro://newtab'||!a.url)?'':a.url;
+ $('#lock').className=/^https:/.test(a.url||'')||/^pro:/.test(a.url||'')?'ok':/^http:/.test(a.url||'')?'bad':'';
+ $('#star').className='ib'+(a.bm?' on':'');$('#star').innerHTML=I('star',a.bm,16)}
+document.addEventListener('click',e=>{const c=e.target.closest('[data-x],[data-id],[data-u],[data-go]');if(!c)return;
+ if(c.dataset.x)return pro.inv('tab','close',+c.dataset.x);
+ if(c.dataset.id)return pro.inv('tab','select',+c.dataset.id);
+ const u=c.dataset.u||c.dataset.go;e.ctrlKey?pro.inv('tab','new',u):pro.inv('nav','go',u)});
+document.addEventListener('auxclick',e=>{if(e.button!==1)return;const t=e.target.closest('[data-id],[data-u]');
+ if(t?.dataset.id)pro.inv('tab','close',+t.dataset.id);else if(t)pro.inv('tab','new',t.dataset.u)});
+$('#newtab').onclick=()=>pro.inv('tab','new');
+$('#back').onclick=()=>pro.inv('nav','back');$('#fwd').onclick=()=>pro.inv('nav','fwd');$('#reload').onclick=()=>pro.inv('nav','reload');
+$('#star').onclick=()=>pro.inv('bm','toggle');
+$('#dl').onclick=()=>pro.inv('nav','go','pro://downloads');$('#set').onclick=()=>pro.inv('nav','go','pro://settings');
+$('#url').addEventListener('keydown',e=>{if(e.key==='Enter'){pro.inv('nav','go',e.target.value);e.target.blur()}if(e.key==='Escape')e.target.blur()});
+$('#url').addEventListener('focus',e=>e.target.select());$('#url').addEventListener('blur',draw);
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(!(e.ctrlKey||e.metaKey))return;
+ if(k==='t'){e.preventDefault();pro.inv('tab','new')}else if(k==='w'){e.preventDefault();pro.inv('tab','close',T.active)}
+ else if(k==='d'){e.preventDefault();pro.inv('bm','toggle')}else if(k==='r'){e.preventDefault();pro.inv('nav','reload')}});
+</script></body></html>

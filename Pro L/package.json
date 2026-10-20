@@ -1,0 +1,18 @@
+{
+  "name": "pro-l",
+  "productName": "Pro L",
+  "version": "1.0.0",
+  "description": "Pro L - a fast, private browser",
+  "main": "src/main.js",
+  "author": "Pro L",
+  "scripts": { "start": "electron .", "dist": "electron-builder --win" },
+  "devDependencies": { "electron": "^33.2.0", "electron-builder": "^25.1.8" },
+  "build": {
+    "appId": "com.prol.browser",
+    "productName": "Pro L",
+    "directories": { "output": "dist" },
+    "files": ["src/**/*"],
+    "win": { "icon": "build/icon.ico", "target": ["nsis", "portable"] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+  }
+}

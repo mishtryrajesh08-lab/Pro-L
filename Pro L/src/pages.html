@@ -1,0 +1,62 @@
+<!doctype html><html data-theme="graphite"><head><meta charset="utf-8"><title>Pro L</title>
+<link rel="stylesheet" href="ui.css"></head><body><div class="page"><div class="wrap" id="root"></div></div>
+<script>
+const $=s=>document.querySelector(s);let D;
+const [route,arg='']=location.hash.slice(1).split(':');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const set=p=>pro.inv('set',p);
+const THEMES={graphite:'Graphite',midnight:'Midnight',light:'Light'};
+const ACCENTS=['#8f9bff','#5fd0c5','#f2a65a','#ff7a90','#a3d95f'];
+(async()=>{D=await pro.inv('state');theme();
+ pro.on('settings',s=>{D.S=s;theme();render()});pro.on('downloads',l=>{D.dl=l;if(route==='downloads')render()});render()})();
+function theme(){document.documentElement.dataset.theme=D.S.theme;document.documentElement.style.setProperty('--accent',D.S.accent)}
+function render(){const f={newtab,setup:()=>settings(1),settings:()=>settings(0),downloads,bookmarks,blocked}[route]||newtab;f()}
+const seg=(k,o,c)=>`<div class="seg">${Object.entries(o).map(([v,l])=>`<button data-k="${k}" data-v="${v}" class="${c===v?'on':''}">${l}</button>`).join('')}</div>`;
+const tog=(k,l,d)=>`<label class="row"><span class="grow"><b style="font-weight:500">${l}</b><span class="hint">${d}</span></span><input type="checkbox" class="tg" data-t="${k}" ${D.S[k]?'checked':''}></label>`;
+function newtab(){document.title='New tab';const s=D.S;
+ $('#root').innerHTML=`<div class="hero"><img src="logo.png" alt=""><h1 style="margin-top:14px">Pro L</h1>
+ <form id="q"><input class="in" id="qi" autofocus placeholder="Search with ${D.engines[s.engine]} or type an address"></form>
+ <div class="tiles">${s.sites.filter(i=>D.sites[i]).map(i=>`<button class="site" data-go="${D.sites[i][1]}" title="${D.sites[i][0]}" style="--c:${D.sites[i][2]}">${D.sites[i][0][0]}</button>`).join('')}</div></div>`;
+ $('#q').onsubmit=e=>{e.preventDefault();pro.inv('nav','go',$('#qi').value)}}
+function settings(first){document.title=first?'Welcome to Pro L':'Settings';const s=D.S;
+ $('#root').innerHTML=`<h1>${first?'Welcome to Pro L':'Settings'}</h1><p class="sub">${first?'Set up your browser. You can change all of this later in Settings.':'Changes are saved automatically.'}</p>
+ <h2>Appearance</h2><div class="card">
+  <div class="row"><span>Sidebar position</span>${seg('side',{left:'Left',right:'Right'},s.side)}</div>
+  <div class="row"><span>Theme</span>${seg('theme',THEMES,s.theme)}</div>
+  <div class="row"><span>Accent colour</span><span>${ACCENTS.map(a=>`<button class="sw ${s.accent===a?'on':''}" data-k="accent" data-v="${a}" style="background:${a}" aria-label="${a}"></button>`).join('')}</span></div></div>
+ <h2>Sidebar websites</h2><p class="hint">Pick the sites that get a button in your sidebar.</p>
+ <div class="chips">${Object.entries(D.sites).map(([id,v])=>`<button class="chip ${s.sites.includes(id)?'on':''}" data-site="${id}" style="--c:${v[2]}">${v[0]}</button>`).join('')}</div>
+ <h2>Search engine</h2><div class="card"><div class="row"><span>Used when you type in the address bar</span>
+  <select id="eng">${Object.entries(D.engines).map(([k,n])=>`<option value="${k}" ${s.engine===k?'selected':''}>${n}</option>`).join('')}</select></div></div>
+ <h2>Privacy and security</h2><div class="card">
+  ${tog('adblock','Block ads and trackers','Stops requests to known ad and tracking networks.')}
+  ${tog('https','HTTPS only','Upgrades every http:// address to https://. Sites without HTTPS will not load.')}
+  ${tog('phish','Block fake sites','Warns before look-alike, raw-IP and high-risk addresses.')}</div>
+ ${first?`<p style="margin-top:28px"><button class="btn" id="go">Start browsing</button></p>`:`
+ <h2>Advanced</h2><div class="card">
+  <div class="row"><span>Homepage</span><input class="in" id="home" value="${esc(s.home)}" style="width:260px"></div>
+  <div class="row"><span class="grow">Clear cookies, cache and site data<span class="hint">Signs you out of websites.</span></span><button class="btn ghost" id="clr">Clear data</button></div>
+  <div class="row"><span class="grow">Shortcuts<span class="hint">Ctrl+T new tab, Ctrl+W close, Ctrl+L address bar, Ctrl+D bookmark, Ctrl+Tab next tab, Ctrl +/- zoom</span></span></div></div>`}`;
+ if($('#go'))$('#go').onclick=async()=>{await set({setupDone:true});pro.inv('nav','go','pro://newtab')};
+ $('#eng').onchange=e=>set({engine:e.target.value});
+ if($('#home'))$('#home').onchange=e=>set({home:e.target.value||'pro://newtab'});
+ if($('#clr'))$('#clr').onclick=async e=>{await pro.inv('clear');e.target.textContent='Cleared'}}
+const fmt=b=>b>1e9?(b/1e9).toFixed(1)+' GB':b>1e6?(b/1e6).toFixed(1)+' MB':Math.max(1,Math.round(b/1e3))+' KB';
+function downloads(){document.title='Downloads';
+ $('#root').innerHTML=`<h1>Downloads</h1><div class="list">${D.dl.length?D.dl.map(d=>`<div class="it"><div class="grow"><b>${esc(d.name)}</b>
+ <span class="hint">${d.state==='progressing'?fmt(d.got)+' of '+(d.total?fmt(d.total):'unknown size'):d.state==='completed'?'Done - '+fmt(d.got):d.state==='cancelled'?'Cancelled':'Failed'}</span>
+ ${d.state==='progressing'?`<div class="bar"><i style="width:${d.total?d.got/d.total*100:30}%"></i></div>`:''}</div>
+ ${d.state==='completed'?`<button class="btn ghost" data-dl="open" data-id="${d.id}">Open</button><button class="btn ghost" data-dl="show" data-id="${d.id}">Show in folder</button>`:d.state==='progressing'?`<button class="btn ghost" data-dl="cancel" data-id="${d.id}">Cancel</button>`:''}</div>`).join(''):'<p class="sub" style="padding:16px 0">Files you download appear here.</p>'}</div>`}
+function bookmarks(){document.title='Bookmarks';const b=D.S.bookmarks;
+ $('#root').innerHTML=`<h1>Bookmarks</h1><div class="list">${b.length?b.map((x,i)=>`<div class="it"><a class="grow" style="border:0;padding:0" href="#" data-go="${esc(x.url)}"><b>${esc(x.title)}</b><span class="hint">${esc(x.url)}</span></a><button class="btn ghost" data-rm="${i}">Remove</button></div>`).join(''):'<p class="sub" style="padding:16px 0">Press Ctrl+D or tap the star in the address bar to save a page.</p>'}</div>`}
+function blocked(){document.title='Site blocked';
+ $('#root').innerHTML=`<div class="warn" style="padding-top:8vh"><h1>This site was blocked</h1><p class="sub" style="margin:10px 0 24px">Pro L stopped <b style="color:var(--text)">${esc(decodeURIComponent(arg))}</b>. It may be pretending to be another website to steal your details.</p>
+ <button class="btn" data-go="pro://newtab">Back to safety</button><p class="hint" style="margin-top:16px">You can turn this protection off in Settings if it is a mistake.</p></div>`}
+document.addEventListener('click',e=>{const c=e.target.closest('[data-k],[data-site],[data-go],[data-dl],[data-rm]');if(!c)return;e.preventDefault();const d=c.dataset;
+ if(d.k)set({[d.k]:d.v});
+ else if(d.site){const a=D.S.sites,i=a.indexOf(d.site);set({sites:i>=0?a.filter(x=>x!==d.site):[...a,d.site]})}
+ else if(d.go)pro.inv('nav','go',d.go);
+ else if(d.dl)pro.inv('dl',+d.id,d.dl);
+ else if(d.rm!==undefined)set({bookmarks:D.S.bookmarks.filter((_,i)=>i!==+d.rm)})});
+document.addEventListener('change',e=>{if(e.target.dataset.t)set({[e.target.dataset.t]:e.target.checked})});
+</script></body></html>
