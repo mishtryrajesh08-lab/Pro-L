@@ -1,5 +1,7 @@
    name: Build Pro L
    on: workflow_dispatch
+   permissions:
+     contents: write
    jobs:
      build:
        runs-on: windows-latest
@@ -13,7 +15,8 @@
              node-version: 20
          - run: npm install
          - run: npx electron-builder --win --publish never
-         - uses: actions/upload-artifact@v4
+         - uses: softprops/action-gh-release@v2
            with:
-             name: ProL-exe
-             path: "Pro L/dist/*.exe"
+             tag_name: v1.0.${{ github.run_number }}
+             name: Pro L v1.0.${{ github.run_number }}
+             files: "Pro L/dist/*.exe"
